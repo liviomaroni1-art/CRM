@@ -7,10 +7,11 @@ import AddLeadModal from './AddLeadModal';
 import {
   Search, Plus, Trash2, Edit2, Phone, Mail, Globe,
   ChevronUp, ChevronDown, ArrowUpDown, SlidersHorizontal,
-  UserCheck
+  UserCheck, Download, MessageSquare,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import ClientModal from './ClientModal';
+import LeadDrawer from './LeadDrawer';
 
 interface Props {
   leads: Lead[];
@@ -30,6 +31,7 @@ export default function LeadTable({ leads, onLeadsChanged }: Props) {
   const [addOpen, setAddOpen] = useState(false);
   const [convertLead, setConvertLead] = useState<Lead | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [drawerLead, setDrawerLead] = useState<Lead | null>(null);
 
   const industries = useMemo(
     () => Array.from(new Set(leads.map((l) => l.industry).filter(Boolean))).sort(),
@@ -93,6 +95,22 @@ export default function LeadTable({ leads, onLeadsChanged }: Props) {
       <ArrowUpDown size={12} className="opacity-40" />
     );
 
+  const exportCSV = () => {
+    const headers = ['Business','Contact','Email','Phone','City','Industry','Status','Source','Date Added','Last Contact','Notes'];
+    const rows = filtered.map((l) => [
+      l.businessName, l.contactPerson, l.email, l.phone, l.city, l.industry,
+      LEAD_STATUS_CONFIG[l.status].label, l.source,
+      l.dateAdded ? format(new Date(l.dateAdded), 'yyyy-MM-dd') : '',
+      l.lastContact ? format(new Date(l.lastContact), 'yyyy-MM-dd') : '',
+      (l.notes ?? '').replace(/"/g, '""'),
+    ]);
+    const csv = [headers, ...rows].map((r) => r.map((c) => `"${c ?? ''}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = `leads-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.click();
+  };
+
   const toggleSelect = (id: string) => {
     setSelected((s) => {
       const n = new Set(s);
@@ -144,6 +162,12 @@ export default function LeadTable({ leads, onLeadsChanged }: Props) {
               <Trash2 size={14} /> Delete ({selected.size})
             </button>
           )}
+          <button
+            onClick={exportCSV}
+            className="px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 flex items-center gap-1.5"
+          >
+            <Download size={14} /> Export CSV
+          </button>
           <button
             onClick={() => setAddOpen(true)}
             className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 flex items-center gap-2"
@@ -208,8 +232,12 @@ export default function LeadTable({ leads, onLeadsChanged }: Props) {
               </tr>
             )}
             {filtered.map((lead) => (
-              <tr key={lead.id} className="border-b hover:bg-blue-50/30 transition-colors">
-                <td className="px-4 py-3">
+              <tr
+                key={lead.id}
+                className="border-b hover:bg-blue-50/30 transition-colors cursor-pointer"
+                onClick={() => setDrawerLead(lead)}
+              >
+                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                   <input type="checkbox" checked={selected.has(lead.id)} onChange={() => toggleSelect(lead.id)} />
                 </td>
                 <td className="px-4 py-3">
@@ -217,9 +245,14 @@ export default function LeadTable({ leads, onLeadsChanged }: Props) {
                     <p className="font-semibold text-gray-900">{lead.businessName}</p>
                     {lead.contactPerson && <p className="text-xs text-gray-500">{lead.contactPerson}</p>}
                     {lead.city && <p className="text-xs text-gray-400">📍 {lead.city}</p>}
+                    {(lead.activityLog?.length ?? 0) > 0 && (
+                      <p className="text-xs text-gray-400 flex items-center gap-0.5 mt-0.5">
+                        <MessageSquare size={10} /> {lead.activityLog!.length} activities
+                      </p>
+                    )}
                   </div>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                   <select
                     value={lead.status}
                     onChange={(e) => updateStatus(lead, e.target.value as LeadStatus)}
@@ -258,7 +291,7 @@ export default function LeadTable({ leads, onLeadsChanged }: Props) {
                 <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
                   {lead.lastContact ? format(new Date(lead.lastContact), 'dd MMM yyyy') : '—'}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-1 justify-center">
                     <button
                       onClick={() => setConvertLead(lead)}
@@ -300,6 +333,16 @@ export default function LeadTable({ leads, onLeadsChanged }: Props) {
           fromLead={convertLead}
           onClose={() => setConvertLead(null)}
           onSaved={() => { setConvertLead(null); onLeadsChanged(); }}
+        />
+      )}
+      {drawerLead && (
+        <LeadDrawer
+          lead={drawerLead}
+          onClose={() => setDrawerLead(null)}
+          onLeadUpdated={(updated) => {
+            setDrawerLead(updated);
+            onLeadsChanged();
+          }}
         />
       )}
     </div>

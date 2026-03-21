@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
     source: 'manual',
     ...body,
     id: `lead-${Date.now()}`,
+    activityLog: [],
   };
   leads.push(newLead);
   saveLeads(leads);

@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { Client, ClientStatus, CLIENT_STATUS_CONFIG } from '@/lib/types';
 import { ClientStatusBadge } from './StatusBadge';
 import ClientModal from './ClientModal';
-import { Search, Plus, Trash2, Edit2, Phone, Mail, Globe, Euro, Calendar } from 'lucide-react';
+import { Search, Plus, Trash2, Edit2, Phone, Mail, Globe, Euro, Calendar, Download } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Props {
@@ -42,6 +42,24 @@ export default function ClientTable({ clients, onClientsChanged }: Props) {
     if (!confirm('Delete this client?')) return;
     await fetch(`/api/clients/${id}`, { method: 'DELETE' });
     onClientsChanged();
+  };
+
+  const exportCSV = () => {
+    const headers = ['Business', 'Contact', 'Email', 'Phone', 'Industry', 'Status', 'Monthly Retainer', 'Services', 'Contract Start', 'Contract End', 'Notes'];
+    const rows = filtered.map((c) => [
+      c.businessName, c.contactPerson, c.email, c.phone, c.industry,
+      CLIENT_STATUS_CONFIG[c.status].label,
+      c.monthlyRetainer,
+      c.services.join('; '),
+      c.contractStart ? format(new Date(c.contractStart), 'yyyy-MM-dd') : '',
+      c.contractEnd ? format(new Date(c.contractEnd), 'yyyy-MM-dd') : '',
+      (c.notes ?? '').replace(/"/g, '""'),
+    ]);
+    const csv = [headers, ...rows].map((r) => r.map((v) => `"${v ?? ''}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = `clients-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.click();
   };
 
   const updateStatus = async (client: Client, status: ClientStatus) => {
@@ -98,6 +116,12 @@ export default function ClientTable({ clients, onClientsChanged }: Props) {
             <option key={k} value={k}>{v.label}</option>
           ))}
         </select>
+        <button
+          onClick={exportCSV}
+          className="px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 flex items-center gap-1.5"
+        >
+          <Download size={14} /> Export CSV
+        </button>
         <button
           onClick={() => setAddOpen(true)}
           className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 flex items-center gap-2 ml-auto"

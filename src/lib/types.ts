@@ -24,6 +24,15 @@ export const LEAD_STATUS_CONFIG: Record<
   closed_lost:     { label: 'Closed (Lost)',   color: '#DC2626', bg: 'bg-red-100',    text: 'text-red-800' },
 };
 
+export type ActivityType = 'note' | 'call' | 'email' | 'meeting' | 'status_change';
+
+export interface ActivityEntry {
+  id: string;
+  date: string;
+  type: ActivityType;
+  text: string;
+}
+
 export interface Lead {
   id: string;
   businessName: string;
@@ -43,6 +52,7 @@ export interface Lead {
   website?: string;
   employees?: string;
   revenue?: string;
+  activityLog?: ActivityEntry[];
 }
 
 export type ClientStatus = 'active' | 'paused' | 'ended';
